@@ -17,7 +17,7 @@ Usage of ./GoRedShell:
   -exec string
     	a single command to execute when auth is successful
   -method string
-    	the auth mechanism to use for the brute force (default "ssh")
+    	the auth mechanism to use for the brute force (winrm or ssh)
   -verbose
     	verbosly send messages to the console
   -log
@@ -33,6 +33,7 @@ Usage of ./GoRedShell:
 ```
 
 ### Required Params
+- method
 - host or hostList
 - cred or credList
 - exec
