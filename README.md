@@ -37,3 +37,11 @@ Usage of ./GoRedShell:
 - host or hostList
 - cred or credList
 - exec
+
+
+## Shoutoutz
+- Ne0nd0g
+- Gen0cide
+- Vyrus001
+- Jackson5-sec
+- byt3bl33d3r
