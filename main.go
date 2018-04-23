@@ -140,9 +140,9 @@ func winrmcon(target, user, password, command string) {
 func main() {
 	// Get current working path
 	ex, err := os.Executable()
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
 	exPath := filepath.Dir(ex)
 	// Parse flags
 	flag.Parse()
