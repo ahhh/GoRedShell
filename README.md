@@ -1,5 +1,17 @@
-# GoRedShell
+# GoRedShell (Beta)
 A cross platform tool for verifying credentials and executing single commands
+
+GoRedShell is a cross-platform exploitation tool 
+to validate a common set of credentials across multiple hosts 
+with support for different authentication mechanisms
+
+An introductory blog post can be found here:
+http://lockboxx.blogspot.com/2018/04/goredshell.html
+
+## Getting Started
+The quickest and easiest way to start using GoRedShell is download the
+pre-compiled binary files found in the
+[Releases](https://github.com/ahhh/GoRedShell/releases) section.
 
 
 ## USAGE
@@ -7,9 +19,9 @@ A cross platform tool for verifying credentials and executing single commands
 ```
 Usage of ./GoRedShell:
   -host string
-    	indicate the host or ip address to brute force
+    	indicate the host:port or ip:port address to auth to
   -hostList string
-    	indicate wordlist file that has hosts or ips on each line
+    	indicate wordlist file that has a host:port or ip:port on each line
   -cred string
     	a single un:pw credential pair to use
   -credList string
