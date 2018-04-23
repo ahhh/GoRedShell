@@ -1,4 +1,4 @@
-# GoRedShell (Beta)
+# GoRedShell (Alpha)
 A cross platform tool for verifying credentials and executing single commands
 
 GoRedShell is a cross-platform exploitation tool 
