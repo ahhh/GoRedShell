@@ -241,10 +241,13 @@ func main() {
 							// Add delay here ?
 							time.Sleep(*delay)
 						}
+						message("success", "Done!!")
 					}
 				} else {
 					message("warn", "No creds to scan with")
 				}
+			} else {
+				message("warn", "No creds to scan with")
 			}
 		} else {
 			message("warn", "No hosts to scan")
