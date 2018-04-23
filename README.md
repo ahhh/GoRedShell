@@ -13,7 +13,6 @@ The quickest and easiest way to start using GoRedShell is download the
 pre-compiled binary files found in the
 [Releases](https://github.com/ahhh/GoRedShell/releases) section.
 
-
 ## USAGE
 
 ```
@@ -50,6 +49,13 @@ Usage of ./GoRedShell:
 - cred or credList
 - exec
 
+### Examples
+```
+./GoRedShell -log -delay 200ms -timeout 500ms -method ssh -hostList targets.txt -credList cracked.txt -exec "ifconfig"
+```
+```
+./GoRedShell -verbose -log -method winrm -host 172.16.16.2:5985 -cred Administrator:zerocool -exec "ipconfig"
+```
 
 ## Shoutoutz
 - Ne0nd0g
