@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NetSPI/goddi"
 	"github.com/fatih/color"
 	"github.com/masterzen/winrm"
 	"golang.org/x/crypto/ssh"
+	//github.com/StackExchange/wmi
 )
 
 var serverLog *os.File
@@ -21,8 +23,8 @@ var serverLog *os.File
 var (
 	inittime = time.Now()
 
-	// Starting w/ just ssh as a poc
-	method = flag.String("method", "", "the auth mechanism to use for the brute force")
+	// currently supports ssh, winrm, ldap //wmi
+	method = flag.String("method", "", "the auth mechanism to use for the authentication attempt (ssh, winrm, ldap)")
 	exec   = flag.String("exec", "", "a single command to execute when auth is successful")
 
 	hosts    = []string{}
@@ -47,6 +49,10 @@ var (
 
 	delay   = flag.Duration("delay", 0, "add a delay to each scan")
 	timeout = flag.Duration("timeout", 300*time.Millisecond, "set timeout for an ssh response")
+
+	// Optional flags for some auth methods (i.e. ldap)
+	startTLS = flag.Bool("startTLS", false, "Use for StartTLS for the ldap connection")
+	unsafe   = flag.Bool("unsafe", false, "Use for testing and plaintext connection")
 )
 
 type resp struct {
@@ -54,8 +60,13 @@ type resp struct {
 	//	mu    sync.Mutex
 }
 
+type Win32_Process struct {
+	Name string
+}
+
 // Checks that the mandatory paramaters / flags have been used or prompts and shutsdown
 func paramCheck() bool {
+	canRun := true
 	// Make sure Host or HostList is set
 	if (*host != "") || (*hostList != "") {
 		if *verbose == true {
@@ -63,7 +74,7 @@ func paramCheck() bool {
 		}
 	} else {
 		message("warn", "No host or hostList provided!")
-		return false
+		canRun = false
 	}
 	if (*cred != "") || (*credList != "") {
 		if *verbose == true {
@@ -71,12 +82,12 @@ func paramCheck() bool {
 		}
 	} else {
 		message("warn", "No cred or credList provided!")
-		return false
+		canRun = false
 	}
 	// Make sure an auth method has been selected
 	if *method == "" {
-		message("warn", "No auth method selected! (ssh or winrm)")
-		return false
+		message("warn", "No auth method selected! (ssh, ldap, or winrm)")
+		canRun = false
 	} else {
 		if *verbose == true {
 			message("note", "method has values set")
@@ -85,13 +96,17 @@ func paramCheck() bool {
 	// Make sure an exec command has been selected
 	if *exec == "" {
 		message("warn", "No exec cmd selected!")
-		return false
+		canRun = false
 	} else {
 		if *verbose == true {
 			message("note", "exec has values set")
 		}
 	}
-	return true
+	if !canRun {
+		return false
+	} else {
+		return true
+	}
 }
 
 // Message is used to print a message to the command line
@@ -163,6 +178,7 @@ func sshcon(target, user, password, command string) *resp {
 	return response
 }
 
+// Needs testing and work
 func winrmcon(target, user, password, command string) {
 	// Split our target on : by host:port
 	tz := strings.Split(target, ":")
@@ -189,6 +205,65 @@ func winrmcon(target, user, password, command string) {
 	//message("success", "winrm connection to host "+target+" with un:pw - " + user +":"+password)
 }
 
+// Needs testing and work
+//func wmicon(target, user, password string) {
+//  	// Split our target on : by host:port
+//  	tz := strings.Split(target, ":")
+//  	tzh, tzp := tz[0], tz[1]
+//  	// tzh for host and tzp for port
+//  	var dst []Win32_Process
+//  	wqlQery := wmi.CreateQuery(&dst, "")
+//  	err := wmi.Query(wqlQery, dst, tzh, "root\CIMV2", user, password)
+//  	if err != nil {
+//  		message("warn", "Errors Authenticating: "+err.Error())
+//  		return
+//  	} else {
+//  		message("success", "Success authenticating to target ("+target+") as un:pw - "+user+":"+password)
+//  		if *verbose == true {
+//	  	    	for i, v := range dst {
+//	  		    	message("note", "Process running on target" + " " + i + " " + v.Name)
+//			    }
+//		    }
+//	    }
+//}
+
+// Needs testing and work
+func ldapcon(target, user, password string) {
+	// Split our target on : by host:port
+	tz := strings.Split(target, ":")
+	tzh, _ := tz[0], tz[1]
+	// tzh for host and tzp for port (tzpi is the int type of the port), default ldap is 389 or 636
+
+	// Split our uzer on / by domain:user
+	uz := strings.Split(user, "/")
+	uzd, uzu := uz[0], uz[1]
+	// uzd is for the domain and uzu is for the user
+
+	var ldapIP string
+	ldapServer, ldapIP := goddi.ValidateIPHostname(tzh, uzd)
+	baseDN := "dc=" + strings.Replace(uzd, ".", ",dc=", -1)
+	username := uzu + "@" + uzd
+	li := &goddi.LdapInfo{
+		LdapServer:  ldapServer,
+		LdapIP:      ldapIP,
+		LdapPort:    uint16(389),
+		LdapTLSPort: uint16(636),
+		User:        username,
+		Usergpp:     uzu,
+		Pass:        password,
+		Domain:      uzd,
+		Unsafe:      *unsafe,
+		StartTLS:    *startTLS}
+
+	goddi.Connect(li)
+	defer li.Conn.Close()
+	message("success", "Authed to the dc ("+ldapIP+") w/ un:pw : "+username+":"+password+" !!")
+	if *verbose == true {
+		goddi.GetUsers(li.Conn, baseDN)
+	}
+	return
+}
+
 func main() {
 	// Get current working path
 	ex, err := os.Executable()
@@ -206,7 +281,7 @@ func main() {
 	logz := flag.Lookup("logName")
 	//logging := flag.Lookup("logSuccess")
 	if *log != true {
-		message("warn", "Logging not enabled!")
+		message("note", "Logging not enabled!")
 	} else {
 		// Server Logging
 		if _, err := os.Stat(filepath.Join(exPath, logz.Value.String())); os.IsNotExist(err) {
@@ -233,6 +308,10 @@ func main() {
 		message("info", "credList flag: "+credListFlag.Value.String())
 		message("info", "exec flag: "+*exec)
 		message("info", "method flag: "+*method)
+		//message("info", "timeout flag: "+strconv.Itoa(*timeout))
+		//message("info", "delay flag: "+strconv.Itoa(*delay))
+		message("info", "unsafe flag: "+strconv.FormatBool(*unsafe))
+		message("info", "startTLS flag: "+strconv.FormatBool(*startTLS))
 	}
 
 	// Make sure our mandatory paramaters / flags are set or return without running
@@ -287,6 +366,10 @@ func main() {
 						}
 					case "winrm":
 						winrmcon(singleHost, un, pw, *exec)
+					case "ldap":
+						ldapcon(singleHost, un, pw)
+					//case "wmi":
+					//	wmicon(singleHost, un, pw)
 					default:
 						message("warn", "Select a method: ssh or winrm")
 					}
