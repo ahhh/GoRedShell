@@ -51,7 +51,6 @@ Usage of ./GoRedShell:
 - method
 - host or hostList
 - cred or credList
-- exec
 
 ### Examples
 ```
