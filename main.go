@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/NetSPI/goddi"
 	"github.com/fatih/color"
+	"github.com/kward/go-vnc"
 	"github.com/masterzen/winrm"
 	"golang.org/x/crypto/ssh"
 	//github.com/StackExchange/wmi
@@ -23,9 +26,8 @@ var serverLog *os.File
 var (
 	inittime = time.Now()
 
-	// currently supports ssh, winrm, ldap //wmi
-	method = flag.String("method", "", "the auth mechanism to use for the authentication attempt (ssh, winrm, ldap)")
-	exec   = flag.String("exec", "", "a single command to execute when auth is successful")
+	// currently supports ssh, vnc, winrm, ldap //wmi
+	method = flag.String("method", "", "the auth mechanism to use for the authentication attempt (ssh, vnc, winrm, ldap)")
 
 	hosts    = []string{}
 	host     = flag.String("host", "", "indicate the host or ip address to brute force")
@@ -53,6 +55,7 @@ var (
 	// Optional flags for some auth methods (i.e. ldap)
 	startTLS = flag.Bool("startTLS", false, "Use for StartTLS for the ldap connection")
 	unsafe   = flag.Bool("unsafe", false, "Use for testing and plaintext connection")
+	exec     = flag.String("exec", "", "a single command to execute when auth is successful")
 )
 
 type resp struct {
@@ -76,6 +79,7 @@ func paramCheck() bool {
 		message("warn", "No host or hostList provided!")
 		canRun = false
 	}
+	// Make sure Cred or CredList is set
 	if (*cred != "") || (*credList != "") {
 		if *verbose == true {
 			message("note", "cred or credList has values set")
@@ -86,7 +90,7 @@ func paramCheck() bool {
 	}
 	// Make sure an auth method has been selected
 	if *method == "" {
-		message("warn", "No auth method selected! (ssh, ldap, or winrm)")
+		message("warn", "No auth method selected! (ssh, vnc, ldap, or winrm)")
 		canRun = false
 	} else {
 		if *verbose == true {
@@ -94,15 +98,16 @@ func paramCheck() bool {
 		}
 	}
 	// Make sure an exec command has been selected
-	if *exec == "" {
-		message("warn", "No exec cmd selected!")
-		canRun = false
-	} else {
-		if *verbose == true {
-			message("note", "exec has values set")
-		}
-	}
+	//if *exec == "" {
+	//	message("warn", "No exec cmd selected!")
+	//	canRun = false
+	//} else {
+	//	if *verbose == true {
+	//		message("note", "exec has values set")
+	//	}
+	//}
 	if !canRun {
+		message("warn", "Missing mandatory paramaters. use -h for the help menu.")
 		return false
 	} else {
 		return true
@@ -176,6 +181,27 @@ func sshcon(target, user, password, command string) *resp {
 	}
 	response.Error = err
 	return response
+}
+
+// Needs testing and work
+func vnccon(target, password string) {
+	// Establish TCP connection to VNC server // Not a bad idea to do this universally
+	nc, err := net.Dial("tcp", target)
+	if err != nil {
+		if *verbose == true {
+			message("warn", "Error connecting to VNC host. "+err.Error())
+		}
+	}
+	// Negotiate connection with the vnc server
+	vcc := vnc.NewClientConfig(password)
+	_, err = vnc.Connect(context.Background(), nc, vcc)
+	if err != nil {
+		if *verbose == true {
+			message("warn", "Errors authenticating to the vnc server: "+err.Error())
+		}
+	} else {
+		message("success", "vnc connection to host "+target+" with pw - "+password)
+	}
 }
 
 // Needs testing and work
@@ -370,6 +396,8 @@ func main() {
 						ldapcon(singleHost, un, pw)
 					//case "wmi":
 					//	wmicon(singleHost, un, pw)
+					case "vnc":
+						vnccon(singleHost, pw)
 					default:
 						message("warn", "Select a method: ssh or winrm")
 					}
