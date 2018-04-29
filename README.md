@@ -25,10 +25,8 @@ Usage of ./GoRedShell:
     	a single un:pw credential pair to use
   -credList string
     	a username:password wordlist list, with unique un:pw combos on each line
-  -exec string
-    	a single command to execute when auth is successful
   -method string
-    	the auth mechanism to use for the brute force (winrm, ldap, or ssh)
+    	the auth mechanism to use for the brute force (winrm, ldap, vnc, or ssh)
   -verbose
     	verbosly send messages to the console
   -log
@@ -41,6 +39,12 @@ Usage of ./GoRedShell:
     	set timeout for an ssh response (default 300ms)
   -delay duration
     	add a delay to each scan, ex: 1s || 1000ms  (default 0s)
+  -exec string
+    	a single command to execute when auth is successful
+  -startTLS bool
+      Use for StartTLS on the ldap connections
+  -unsafe bool
+      Use for testing and plaintext ldap connections
 ```
 
 ### Required Params
