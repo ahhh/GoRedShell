@@ -241,7 +241,9 @@ func winrmcon(target, user, password, command string) {
 //  	wqlQery := wmi.CreateQuery(&dst, "")
 //  	err := wmi.Query(wqlQery, dst, tzh, "root\CIMV2", user, password)
 //  	if err != nil {
-//  		message("warn", "Errors Authenticating: "+err.Error())
+//			if *verbose == true {
+//		  		message("warn", "Errors Authenticating: "+err.Error())
+//			}
 //  		return
 //  	} else {
 //  		message("success", "Success authenticating to target ("+target+") as un:pw - "+user+":"+password)
@@ -254,7 +256,7 @@ func winrmcon(target, user, password, command string) {
 //}
 
 // Needs testing and work
-func ldapcon(target, user, password string) {
+func ldapcon(target, user, password string) bool {
 	// Split our target on : by host:port
 	tz := strings.Split(target, ":")
 	tzh, _ := tz[0], tz[1]
@@ -287,7 +289,7 @@ func ldapcon(target, user, password string) {
 	if *verbose == true {
 		goddi.GetUsers(li.Conn, baseDN)
 	}
-	return
+	return true
 }
 
 func main() {
@@ -301,13 +303,17 @@ func main() {
 	flag.Parse()
 	// Set up logging
 	if *nobanner == false {
-		color.Red(Banner1)
+		if *verbose == true {
+			color.Red(Banner1)
+		}
 		color.Red("Welcome to GoRedShell, don't get banned nub!")
 	}
 	logz := flag.Lookup("logName")
 	//logging := flag.Lookup("logSuccess")
 	if *log != true {
-		message("note", "Logging not enabled!")
+		if *verbose == true {
+			message("note", "Logging not enabled!")
+		}
 	} else {
 		// Server Logging
 		if _, err := os.Stat(filepath.Join(exPath, logz.Value.String())); os.IsNotExist(err) {
@@ -319,8 +325,13 @@ func main() {
 			color.Red("[!] " + errLog.Error())
 		}
 		defer serverLog.Close()
-		message("info", "log file created at: "+filepath.Join(exPath, logz.Value.String()))
+		if *verbose == true {
+			message("info", "log file created at: "+filepath.Join(exPath, logz.Value.String()))
+		}
 	}
+
+	// New Run!
+	message("info", "Starting new run at: "+fmt.Sprintf("%s", time.Now()))
 
 	//verboseFlag := flag.Lookup("verbose")
 	hostFlag := flag.Lookup("host")
@@ -338,6 +349,10 @@ func main() {
 		//message("info", "delay flag: "+strconv.Itoa(*delay))
 		message("info", "unsafe flag: "+strconv.FormatBool(*unsafe))
 		message("info", "startTLS flag: "+strconv.FormatBool(*startTLS))
+		message("info", "nobanner flag: "+strconv.FormatBool(*nobanner))
+		message("info", "verbose flag: "+strconv.FormatBool(*verbose))
+		message("info", "log flag: "+strconv.FormatBool(*log))
+		message("info", "logName flag: "+*logName)
 	}
 
 	// Make sure our mandatory paramaters / flags are set or return without running
@@ -355,7 +370,9 @@ func main() {
 	} else if *hostList != "" {
 		hosts = append(hosts, readLines(hostListFlag.Value.String())...)
 	} else {
-		message("warn", "No hosts to scan")
+		if *verbose == true {
+			message("warn", "No hosts to scan")
+		}
 	}
 	if hosts != nil {
 		// Collect our creds
@@ -364,7 +381,9 @@ func main() {
 		} else if *credList != "" {
 			creds = append(creds, readLines(credListFlag.Value.String())...)
 		} else {
-			message("warn", "No creds to scan with")
+			if *verbose == true {
+				message("warn", "No creds to scan with")
+			}
 		}
 		if creds != nil {
 			for credIndex, singleCred := range creds {
@@ -393,7 +412,10 @@ func main() {
 					case "winrm":
 						winrmcon(singleHost, un, pw, *exec)
 					case "ldap":
-						ldapcon(singleHost, un, pw)
+						res := ldapcon(singleHost, un, pw)
+						if !res && *verbose == true {
+							message("warn", "Error authenticating to "+singleHost+"as un:pw - "+un+":"+pw)
+						}
 					//case "wmi":
 					//	wmicon(singleHost, un, pw)
 					case "vnc":
