@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NetSPI/goddi/ddi""
+	"github.com/NetSPI/goddi/ddi"
 	"github.com/fatih/color"
 	"github.com/kward/go-vnc"
 	"github.com/masterzen/winrm"
