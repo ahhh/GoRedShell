@@ -98,14 +98,14 @@ func paramCheck() bool {
 		}
 	}
 	// Make sure an exec command has been selected
-	//if *exec == "" {
-	//	message("warn", "No exec cmd selected!")
-	//	canRun = false
-	//} else {
-	//	if *verbose == true {
-	//		message("note", "exec has values set")
-	//	}
-	//}
+	if *exec == "" {
+		message("warn", "No exec cmd selected!")
+		canRun = false
+	} else {
+		if *verbose == true {
+			message("note", "exec has values set")
+		}
+	}
 	if !canRun {
 		message("warn", "Missing mandatory paramaters. use -h for the help menu.")
 		return false
@@ -345,8 +345,8 @@ func main() {
 		message("info", "credList flag: "+credListFlag.Value.String())
 		message("info", "exec flag: "+*exec)
 		message("info", "method flag: "+*method)
-		//message("info", "timeout flag: "+strconv.Itoa(*timeout))
-		//message("info", "delay flag: "+strconv.Itoa(*delay))
+		message("info", "timeout flag: "+timeout.String())
+		message("info", "delay flag: "+delay.String())
 		message("info", "unsafe flag: "+strconv.FormatBool(*unsafe))
 		message("info", "startTLS flag: "+strconv.FormatBool(*startTLS))
 		message("info", "nobanner flag: "+strconv.FormatBool(*nobanner))

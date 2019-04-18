@@ -57,6 +57,9 @@ Usage of ./GoRedShell:
 ./GoRedShell -log -delay 200ms -timeout 500ms -method ssh -hostList targets.txt -credList cracked.txt -exec "ifconfig"
 ```
 ```
+./GoRedShell -hostList targets -credList creds -method ssh -exec whoami -nobanner -verbose -log -logName success.txt
+```
+```
 ./GoRedShell -verbose -log -method winrm -host 172.16.16.2:5985 -cred Administrator:zerocool -exec "ipconfig"
 ```
 
@@ -65,7 +68,6 @@ Usage of ./GoRedShell:
 - Gen0cide
 - Vyrus001
 - Jackson5-sec
-- byt3bl33d3r
 
 
 ## Get Shellz
