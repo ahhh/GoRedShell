@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/NetSPI/goddi/ddi"
+	//"github.com/ahhh/wmi"
 	"github.com/fatih/color"
 	"github.com/kward/go-vnc"
 	"github.com/masterzen/winrm"
 	"golang.org/x/crypto/ssh"
-	//github.com/StackExchange/wmi
 )
 
 var serverLog *os.File
@@ -204,7 +204,16 @@ func vnccon(target, password string) {
 	}
 }
 
-// Needs testing and work
+// Needs the following set on windows to work:
+// Needs Private or Domain set Network, not Public:
+// Get-NetConnectionProfile
+// Set-NetConnectionProfile -InterfaceIndex <index number> -NetworkCategory Private
+// Need to run the following to enable winRM:
+// winrm quickconfig
+// y
+// winrm set winrm/config/service/Auth '@{Basic="true"}'
+// winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+// winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="1024"}'
 func winrmcon(target, user, password, command string) {
 	// Split our target on : by host:port
 	tz := strings.Split(target, ":")
@@ -231,28 +240,29 @@ func winrmcon(target, user, password, command string) {
 	//message("success", "winrm connection to host "+target+" with un:pw - " + user +":"+password)
 }
 
-// Needs testing and work
+// Needs testing and work (go-ole will only work on windows)
 //func wmicon(target, user, password string) {
-//  	// Split our target on : by host:port
-//  	tz := strings.Split(target, ":")
-//  	tzh, tzp := tz[0], tz[1]
-//  	// tzh for host and tzp for port
-//  	var dst []Win32_Process
-//  	wqlQery := wmi.CreateQuery(&dst, "")
-//  	err := wmi.Query(wqlQery, dst, tzh, "root\CIMV2", user, password)
-//  	if err != nil {
-//			if *verbose == true {
-//		  		message("warn", "Errors Authenticating: "+err.Error())
+//	// Split our target on : by host:port
+//	tz := strings.Split(target, ":")
+//	tzh, _ := tz[0], tz[1]
+//	// tzh for host and tzp for port
+//	var dst []Win32_Process
+//	wqlQery := wmi.CreateQuery(&dst, "")
+//	err := wmi.Query(wqlQery, dst, tzh, "root\\CIMV2", user, password)
+//	if err != nil {
+//		if *verbose == true {
+//			message("warn", "Errors Authenticating: "+err.Error())
+//		}
+//		return
+//	} else {
+//		message("success", "Success authenticating to target ("+target+") as un:pw - "+user+":"+password)
+//		if *verbose == true {
+//			for i, v := range dst {
+//				fmsg := fmt.Sprintf("Process running on target: %d - %s", i, v.Name)
+//				message("note", fmsg)
 //			}
-//  		return
-//  	} else {
-//  		message("success", "Success authenticating to target ("+target+") as un:pw - "+user+":"+password)
-//  		if *verbose == true {
-//	  	    	for i, v := range dst {
-//	  		    	message("note", "Process running on target" + " " + i + " " + v.Name)
-//			    }
-//		    }
-//	    }
+//		}
+//	}
 //}
 
 // Needs testing and work
@@ -416,12 +426,12 @@ func main() {
 						if !res && *verbose == true {
 							message("warn", "Error authenticating to "+singleHost+"as un:pw - "+un+":"+pw)
 						}
-					//case "wmi":
-					//	wmicon(singleHost, un, pw)
+					case "wmi":
+						wmicon(singleHost, un, pw)
 					case "vnc":
 						vnccon(singleHost, pw)
 					default:
-						message("warn", "Select a method: ssh or winrm")
+						message("warn", "Select a method: ssh, ldap, vnc, or winrm")
 					}
 				}
 				// Add delay here ?
