@@ -18,6 +18,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/kward/go-vnc"
 	"github.com/masterzen/winrm"
+	"github.com/stacktitan/smb/smb"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -90,7 +91,7 @@ func paramCheck() bool {
 	}
 	// Make sure an auth method has been selected
 	if *method == "" {
-		message("warn", "No auth method selected! (ssh, vnc, ldap, or winrm)")
+		message("warn", "No auth method selected! (ssh, vnc, ldap, smb, or winrm)")
 		canRun = false
 	} else {
 		if *verbose == true {
@@ -181,6 +182,40 @@ func sshcon(target, user, password, command string) *resp {
 	}
 	response.Error = err
 	return response
+}
+
+func smbcon(target, usr, pword, domain string) {
+	options := smb.Options{
+		Host:        target,
+		Port:        445,
+		User:        usr,
+		Domain:      domain,
+		Workstation: "",
+		Password:    pword,
+	}
+	debug := false
+	session, err := smb.NewSession(options, debug)
+	if err != nil {
+		message("warn", "Error connecting to smb host. "+err.Error())
+	}
+	defer session.Close()
+	if *verbose == true {
+		if session.IsSigningRequired {
+			message("note", "Signing is required for "+target)
+		} else {
+			message("note", "Signing is NOT required for "+target)
+		}
+	}
+	if session.IsAuthenticated {
+		message("success", "Created smb connection to host "+target+" with un:pw - "+usr+":"+pword)
+	} else {
+		if *verbose == true {
+			message("note", "Login failed to host "+target+"  with un:pw - "+usr+":"+pword)
+		}
+		if err != nil {
+			message("warn", "Error connecting to smb host. "+target+"  "+err.Error())
+		}
+	}
 }
 
 // Needs testing and work
@@ -421,17 +456,21 @@ func main() {
 						}
 					case "winrm":
 						winrmcon(singleHost, un, pw, *exec)
+					case "smb":
+						uz := strings.Split(un, "\\")
+						domain, un2 := uz[0], uz[1]
+						smbcon(singleHost, un2, pw, domain)
 					case "ldap":
 						res := ldapcon(singleHost, un, pw)
 						if !res && *verbose == true {
 							message("warn", "Error authenticating to "+singleHost+"as un:pw - "+un+":"+pw)
 						}
-					case "wmi":
-						wmicon(singleHost, un, pw)
+					//case "wmi":
+					//	wmicon(singleHost, un, pw)
 					case "vnc":
 						vnccon(singleHost, pw)
 					default:
-						message("warn", "Select a method: ssh, ldap, vnc, or winrm")
+						message("warn", "Select a method: ssh, ldap, smb, vnc, or winrm")
 					}
 				}
 				// Add delay here ?
